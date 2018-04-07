@@ -111,4 +111,4 @@ def search_artist():
 
 app.secret_key = os.urandom(30)
 
-app.run(port=8888, debug=True)
+app.run(port=int(os.getenv("PORT", 8888)), debug=True)
