@@ -9,6 +9,10 @@ app = Flask("MyMusicApp")
 CLIENT_ID = "81c646550b95493ea3c94f1950f57543"
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 
+PORT = int(os.getenv("PORT", 8888))
+HOSTNAME = os.getenv("HEROKU_HOSTNAME", "http://localhost:{}".format(PORT))
+REDIRECT_URI = HOSTNAME + "/callback"
+
 
 @app.route("/")
 def index():
@@ -22,7 +26,7 @@ def requestAuth():
     params = {
               "client_id": CLIENT_ID,
               "response_type": "code",
-              "redirect_uri": "http://localhost:8888/callback",
+              "redirect_uri": REDIRECT_URI,
               # "state": "sdfdskjfhkdshfkj",
               "scope": "playlist-modify-public playlist-modify-private",
               # "show_dialog": True
@@ -38,7 +42,7 @@ def ask_token(code):
     payload = {
               "grant_type": 'authorization_code',
               "code": code,
-              "redirect_uri": "http://localhost:8888/callback",
+              "redirect_uri": REDIRECT_URI,
             }
     #client = '{}:{}'.format(CLIENT_ID, CLIENT_SECRET)
 
@@ -111,4 +115,4 @@ def search_artist():
 
 app.secret_key = os.urandom(30)
 
-app.run(port=int(os.getenv("PORT", 8888)), host="0.0.0.0", debug=True)
+app.run(port=PORT, host="0.0.0.0", debug=True)
