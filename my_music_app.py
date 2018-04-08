@@ -6,22 +6,30 @@ import os
 
 app = Flask("MyMusicApp")
 
+# Spotify App data
 CLIENT_ID = "81c646550b95493ea3c94f1950f57543"
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 
+# Port and Hostname that are used to launch App in heroku
 PORT = int(os.getenv("PORT", 8888))
 HOSTNAME = os.getenv("HEROKU_HOSTNAME", "http://localhost:{}".format(PORT))
+
+# Redirect URI for Spotify API
 REDIRECT_URI = HOSTNAME + "/callback"
 
 
 @app.route("/")
 def index():
+    # Main page
     return render_template("index.html")
 
 
 @app.route("/login")
 def requestAuth():
-    #print("Requeste aouthorisation")
+    """
+    Application requests authorization from Spotify.
+    Step 1 in Guide
+    """
     endpoint = "https://accounts.spotify.com/authorize"
     params = {
               "client_id": CLIENT_ID,
@@ -31,32 +39,39 @@ def requestAuth():
               "scope": "playlist-modify-public playlist-modify-private",
               # "show_dialog": True
             }
-    url_arg = "&".join(["{}={}".format(key, urllib.parse.quote(val)) for key, val in params.items()])
+    # Create query string from params
+    url_arg = "&".join(["{}={}".format(key, urllib.parse.quote(val)) for
+                        key, val in params.items()])
+    # Request URL
     auth_url = endpoint + "/?" + url_arg
-    #print(auth_url)
+    # User is redirected to Spotify where user is asked to authorize access to
+    # his/her account within the scopes
     return redirect(auth_url)
 
 
-def ask_token(code):
+def request_token(code):
+    """
+    Finction that requests refresh and access tokens from Spotify API
+    Step 4 in Guide
+    """
     endpoint = "https://accounts.spotify.com/api/token"
     payload = {
               "grant_type": 'authorization_code',
               "code": code,
               "redirect_uri": REDIRECT_URI,
             }
-    #client = '{}:{}'.format(CLIENT_ID, CLIENT_SECRET)
-
-    #r = requests.post(api_URL, auth=HTTPBasicAuth('user', 'pass'), data=payload)
-    #clientBase64Encoded = base64.b64encode(bytes(client, 'utf-8'))
-    #headers = {"Authorization": "Basic %s" % clientBase64Encoded}
+    # Get refresh and access tokens
     response_data = requests.post(endpoint,
                                   auth=HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET),
                                   data=payload)
-    #print(response_data)
+
+    # Check response from Spotify API
+    # Something went wrong. Ask user to try to login again
     if response_data.status_code != 200:
         return redirect(url_for('index'))
+
+    # Success. Convert response data in json
     data = response_data.json()
-    #print(data)
     access_data = {
         'access_token': data["access_token"],
         'refresh_token': data["refresh_token"],
@@ -68,24 +83,44 @@ def ask_token(code):
 
 @app.route("/callback")
 def callback():
+    """
+    After the user accepts (or denies) request to Log in his Spotify account,
+    the Spotify Accounts service redirects back to the REDIRECT_URI.
+    Step 3 in Guide.
+    """
+    # Check if the user has not accepted the request or an error has occurred
     if "error" in request.args:
         return redirect(url_for('index'))
+
+    # On success response query string contains parameter "code".
+    # Code is used to receive access data from Spotify
     code = request.args['code']
-    #print('CODE', code)
-    # Dict of access values
-    access_data = ask_token(code)
-    #print(access_data)
+
+    # request_token function returns dict of access values
+    access_data = request_token(code)
+
+    # Session allows to store information specific to a user from one request
+    # to the next one
     session['access_data'] = access_data
-    #session['access_token'] = access_data['access_token']
+    # After the access_data was received our App can use Spotify API
     return render_template("ask_artist.html")
 
 
 @app.route("/search_artist", methods=["POST"])
 def search_artist():
+    """
+    Example decorator that uses access_data to get data from Spotify API.
+    In this example the artist is searched by his/her name
+    """
+    # Check if user is logged in
     if "access_data" not in session:
         return redirect(url_for('index'))
+
+    # User is logged in
+    # Get access_token from user's request
     access_token = session['access_data']['access_token']
 
+    # Get data that user post to App
     form_data = request.form
     artist = form_data["artist"]
 
@@ -99,17 +134,18 @@ def search_artist():
               "type": "artist",
             }
     # Search for artist
-    url_arg = "&".join(["{}={}".format(key, urllib.parse.quote(val)) for key, val in payload.items()])
+    url_arg = "&".join(["{}={}".format(key, urllib.parse.quote(val))
+                        for key, val in payload.items()])
     auth_url = endpoint + "/?" + url_arg
-    search_artist_response = requests.get(auth_url, headers=authorization_header)
 
+    # Get request to Spotify API to search an artist
+    search_artist_response = requests.get(auth_url,
+                                          headers=authorization_header)
+    # Convert response data in json
     founded_artists = search_artist_response.json()
-    print(founded_artists)
-    # Loop through artist
-    artists_list = []
-    for art in founded_artists['artists']['items']:
-        artists_list.append(art['name'])
-    print(artists_list)
+
+    # Create list of founded artists
+    artists_list = [art['name'] for art in founded_artists['artists']['items']]
     return str(artists_list)
 
 
