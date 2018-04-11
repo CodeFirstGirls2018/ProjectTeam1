@@ -4,11 +4,12 @@ import urllib
 from requests.auth import HTTPBasicAuth
 import os
 import sys
+import pprint
 
 app = Flask("MyMusicApp")
 
 # Spotify App data
-CLIENT_ID = "81c646550b95493ea3c94f1950f57543"
+CLIENT_ID = "54c687fce796416ca546e356cd582560"
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 
 # Port and Hostname that are used to launch App in heroku
@@ -17,6 +18,16 @@ HOSTNAME = os.getenv("HEROKU_HOSTNAME", "http://localhost:{}".format(PORT))
 
 # Redirect URI for Spotify API
 REDIRECT_URI = HOSTNAME + "/callback"
+
+
+# Get a access_toke without asking user to log in
+def call_api_token(code):
+    endpoint = "https://accounts.spotify.com/api/token"
+    make_request = requests.post(endpoint,
+                                 data={"grant_type": "client_credentials",
+                                       "client_id": CLIENT_ID,
+                                       "client_secret": CLIENT_SECRET})
+    return make_request
 
 
 # Function that checks if it is Python3 version
@@ -39,6 +50,14 @@ def quote_params_val(val):
 @app.route("/")
 def index():
     # Main page
+    code_api_token = request.args.get("code")
+    # missing checks, eg. if access denied
+    # no refresh token either
+    spo_response = call_api_token(code_api_token)
+    token = spo_response.json()["access_token"]
+    # pp.pprint(spo_response.json())
+    # pp.pprint(get_track(token))
+    # pp.pprint(search_art(token))
     return render_template("index.html")
 
 
@@ -166,6 +185,19 @@ def search_artist():
     # Create list of founded artists
     artists_list = [art['name'] for art in founded_artists['artists']['items']]
     return str(artists_list)
+
+    # spotify's examples on API documentation for now.
+    def get_track(token):
+        headers = {
+                    'Authorization': 'Bearer ' + token}
+        response = requests.get('https://api.spotify.com/v1/tracks/2TpxZ7JUBn3uw46aR7qd6V', headers=headers)
+        return response.json()
+
+    # spotify's examples on API documentation for now.
+    def search_art(token):
+        headers = {'Authorization': 'Bearer ' + token}
+        response = requests.get('https://api.spotify.com/v1/artists/0OdUWJ0sBjDrqHygGUXeCF', headers=headers)
+        return response.json()
 
 
 app.secret_key = os.urandom(30)
