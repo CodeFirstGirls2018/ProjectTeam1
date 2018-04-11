@@ -1,1 +1,1 @@
-web: python3 my_music_app.py
+web: python2 my_music_app.py

@@ -3,6 +3,7 @@ import requests
 import urllib
 from requests.auth import HTTPBasicAuth
 import os
+import sys
 
 app = Flask("MyMusicApp")
 
@@ -16,6 +17,23 @@ HOSTNAME = os.getenv("HEROKU_HOSTNAME", "http://localhost:{}".format(PORT))
 
 # Redirect URI for Spotify API
 REDIRECT_URI = HOSTNAME + "/callback"
+
+
+# Function that checks if it is Python3 version
+def python_version_3():
+    if sys.version_info[0] == 3:
+        return True
+    return False
+
+
+# Function that replace special characters in val string using the %xx escape
+def quote_params_val(val):
+    # Python2 version
+    value = urllib.quote(val)
+    # Python3 version
+    if python_version_3():
+        value = urllib.parse.quote(val)
+    return value
 
 
 @app.route("/")
@@ -39,8 +57,9 @@ def requestAuth():
               "scope": "playlist-modify-public playlist-modify-private",
               # "show_dialog": True
             }
+
     # Create query string from params
-    url_arg = "&".join(["{}={}".format(key, urllib.parse.quote(val)) for
+    url_arg = "&".join(["{}={}".format(key, quote_params_val(val)) for
                         key, val in params.items()])
     # Request URL
     auth_url = endpoint + "/?" + url_arg
@@ -134,7 +153,7 @@ def search_artist():
               "type": "artist",
             }
     # Search for artist
-    url_arg = "&".join(["{}={}".format(key, urllib.parse.quote(val))
+    url_arg = "&".join(["{}={}".format(key, quote_params_val(val))
                         for key, val in payload.items()])
     auth_url = endpoint + "/?" + url_arg
 
