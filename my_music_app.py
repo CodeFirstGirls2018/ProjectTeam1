@@ -4,7 +4,7 @@ import urllib
 from requests.auth import HTTPBasicAuth
 import os
 import sys
-import pprint
+# import pprint
 
 app = Flask("MyMusicApp")
 
@@ -20,8 +20,8 @@ HOSTNAME = os.getenv("HEROKU_HOSTNAME", "http://localhost:{}".format(PORT))
 REDIRECT_URI = HOSTNAME + "/callback"
 
 
-# Get a access_toke without asking user to log in
-def call_api_token(code):
+# Requeest an access_token without asking user to log in
+def req_no_user_data_token(code):
     endpoint = "https://accounts.spotify.com/api/token"
     make_request = requests.post(endpoint,
                                  data={"grant_type": "client_credentials",
@@ -30,66 +30,29 @@ def call_api_token(code):
     return make_request
 
 
-# Function that checks if it is Python3 version
-def python_version_3():
-    if sys.version_info[0] == 3:
-        return True
-    return False
-
-
-# Function that replace special characters in val string using the %xx escape
-def quote_params_val(val):
-    # Python2 version
-    value = urllib.quote(val)
-    # Python3 version
-    if python_version_3():
-        value = urllib.parse.quote(val)
-    return value
-
-
-@app.route("/")
-def index():
-    # Main page
+# Get an access_toke without asking user to log in
+def get_no_user_data_token():
     code_api_token = request.args.get("code")
     # missing checks, eg. if access denied
     # no refresh token either
-    spo_response = call_api_token(code_api_token)
+    spo_response = req_no_user_data_token(code_api_token)
     token = spo_response.json()["access_token"]
     # pp.pprint(spo_response.json())
     # pp.pprint(get_track(token))
     # pp.pprint(search_art(token))
-    return render_template("index.html")
+    return token
 
 
-@app.route("/login")
-def requestAuth():
+# This token can be used for Spotify API requests that do not involve user data
+# TOKEN_NO_USER_DATA = get_no_user_data_token()
+# we can ask this token ones and use it. If we want to modify it, it should be
+# stored in a way that provides to change it from different places (functions)
+
+
+def request_user_data_token(code):
     """
-    Application requests authorization from Spotify.
-    Step 1 in Guide
-    """
-    endpoint = "https://accounts.spotify.com/authorize"
-    params = {
-              "client_id": CLIENT_ID,
-              "response_type": "code",
-              "redirect_uri": REDIRECT_URI,
-              # "state": "sdfdskjfhkdshfkj",
-              "scope": "playlist-modify-public playlist-modify-private",
-              # "show_dialog": True
-            }
-
-    # Create query string from params
-    url_arg = "&".join(["{}={}".format(key, quote_params_val(val)) for
-                        key, val in params.items()])
-    # Request URL
-    auth_url = endpoint + "/?" + url_arg
-    # User is redirected to Spotify where user is asked to authorize access to
-    # his/her account within the scopes
-    return redirect(auth_url)
-
-
-def request_token(code):
-    """
-    Finction that requests refresh and access tokens from Spotify API
+    Finction that requests refresh and access tokens from Spotify API.
+    This token allows to change and request user related data.
     Step 4 in Guide
     """
     endpoint = "https://accounts.spotify.com/api/token"
@@ -119,6 +82,153 @@ def request_token(code):
     return access_data
 
 
+# Function that checks if it is Python3 version
+def python_version_3():
+    if sys.version_info[0] == 3:
+        return True
+    return False
+
+
+# Create params_query_string
+def params_query_string(payload):
+    # Python2 version
+    url_arg = urllib.urlencode(payload)
+    # Python3 version
+    if python_version_3():
+        url_arg = urllib.parse.urlencode(payload)
+    return url_arg
+
+
+# Function that replace special characters in val string using the %xx escape
+def quote_params_val(val):
+    # Python2 version
+    value = urllib.quote(val)
+    # Python3 version
+    if python_version_3():
+        value = urllib.parse.quote(val)
+    return value
+
+
+def searh_request(token, payload):
+    '''
+    Search request to Spotify APIself.
+    Can be used both types of tokens.
+    Payload specifies what you would like to search (in particular: album,
+    artist, playlist, or track)
+    '''
+    # Endpoint to search
+    endpoint = 'https://api.spotify.com/v1/search'
+    # Use the access token to access Spotify API
+    authorization_header = {"Authorization": "Bearer {}".format(token)}
+    # Prepare URL for search request
+    # url_arg = "&".join(["{}={}".format(key, quote_params_val(val))
+    #                    for key, val in payload.items()])
+    url_arg = params_query_string(payload)
+    auth_url = endpoint + "/?" + url_arg
+    # Get request to Spotify API to search
+    search_response = requests.get(auth_url, headers=authorization_header)
+    # Return the response in json format
+    return search_response.json()
+
+
+def search_artist(token, artist):
+    '''
+    Function that searches the artist
+    Input: token and artist name
+    Returns: array of arist objects in json format
+    '''
+    # Specify that we want to search the artist
+    payload = {
+              "q": artist,
+              "type": "artist",
+            }
+    # Return array of arist objects in json format
+    return searh_request(token, payload)
+
+
+def get_artist_top_tracks(artistID):
+    '''
+    Function that gets Artist's Top Tracks
+    Input: artist ID
+    Returns: uris - list of Spotify URIs for tracks
+    '''
+    # Please, write the code
+    pass
+
+
+def get_current_user_profile(user_data_token):
+    '''
+    Function that Get Current User's Profile
+    Input: user data related token
+    Returns: user ID
+    '''
+    # Please, write the code
+    pass
+
+
+def create_empty_playlist(userID):
+    '''
+    Function that creates an empty playlist for user with userID
+    Input: user ID
+    Returns: ID of the newly created playlist
+    '''
+    # Please, write the code
+    pass
+
+
+def add_traks_to_playlist(userID, playlistID, uris):
+    '''
+    Add Tracks to a Playlist
+    Input:
+    - user ID and user's playlist ID where you want to add Tracks
+    - uris - list of Spotify URIs for tracks
+    Returns
+    For example: True or False
+    True - tracks were added to playlist
+    False - in case of error
+    '''
+    # Please, write the code
+    pass
+
+
+@app.route("/")
+def index():
+    '''
+    Main packages
+    !!! On main page should be added:
+    1) In file index.html: ask user what track he/she would like to listen to.
+    '''
+    return render_template("index.html")
+
+
+@app.route("/login")
+def requestAuth():
+    """
+    Application requests authorization from Spotify.
+    Step 1 in Guide
+    """
+    endpoint = "https://accounts.spotify.com/authorize"
+    payload = {
+              "client_id": CLIENT_ID,
+              "response_type": "code",
+              "redirect_uri": REDIRECT_URI,
+              # "state": "sdfdskjfhkdshfkj",
+              "scope": "playlist-modify-public playlist-modify-private",
+              # "show_dialog": True
+            }
+
+    # Create query string from params
+    # url_arg = "&".join(["{}={}".format(key, quote_params_val(val)) for
+    #                    key, val in params.items()])
+    url_arg = params_query_string(payload)
+
+    # Request URL
+    auth_url = endpoint + "/?" + url_arg
+    # User is redirected to Spotify where user is asked to authorize access to
+    # his/her account within the scopes
+    return redirect(auth_url)
+
+
 @app.route("/callback")
 def callback():
     """
@@ -135,7 +245,7 @@ def callback():
     code = request.args['code']
 
     # request_token function returns dict of access values
-    access_data = request_token(code)
+    access_data = request_user_data_token(code)
 
     # Session allows to store information specific to a user from one request
     # to the next one
@@ -145,7 +255,7 @@ def callback():
 
 
 @app.route("/search_artist", methods=["POST"])
-def search_artist():
+def artists_search():
     """
     Example decorator that uses access_data to get data from Spotify API.
     In this example the artist is searched by his/her name
@@ -153,51 +263,72 @@ def search_artist():
     # Check if user is logged in
     if "access_data" not in session:
         return redirect(url_for('index'))
-
     # User is logged in
-    # Get access_token from user's request
-    access_token = session['access_data']['access_token']
-
+    # Get access token from user's request
+    token = session['access_data']['access_token']
     # Get data that user post to App
     form_data = request.form
     artist = form_data["artist"]
-
-    # Endpoint to search
-    endpoint = 'https://api.spotify.com/v1/search'
-
-    # Use the access token to access Spotify API
-    authorization_header = {"Authorization": "Bearer {}".format(access_token)}
-    payload = {
-              "q": artist,
-              "type": "artist",
-            }
-    # Search for artist
-    url_arg = "&".join(["{}={}".format(key, quote_params_val(val))
-                        for key, val in payload.items()])
-    auth_url = endpoint + "/?" + url_arg
-
-    # Get request to Spotify API to search an artist
-    search_artist_response = requests.get(auth_url,
-                                          headers=authorization_header)
-    # Convert response data in json
-    founded_artists = search_artist_response.json()
-
+    # Get data in json format from search_artist request
+    founded_artists = search_artist(token, artist)
     # Create list of founded artists
     artists_list = [art['name'] for art in founded_artists['artists']['items']]
     return str(artists_list)
 
-    # spotify's examples on API documentation for now.
-    def get_track(token):
-        headers = {
-                    'Authorization': 'Bearer ' + token}
-        response = requests.get('https://api.spotify.com/v1/tracks/2TpxZ7JUBn3uw46aR7qd6V', headers=headers)
-        return response.json()
 
-    # spotify's examples on API documentation for now.
-    def search_art(token):
-        headers = {'Authorization': 'Bearer ' + token}
-        response = requests.get('https://api.spotify.com/v1/artists/0OdUWJ0sBjDrqHygGUXeCF', headers=headers)
-        return response.json()
+@app.route("/playlist_created", methods=["POST"])
+def create_playlist():
+    '''
+    What to do:
+    1) Get artist ID;
+    2) Get an Artist's Top Tracks using artist ID;
+    3) Get Current User's Profile:
+    https://beta.developer.spotify.com/documentation/web-api/reference/users-profile/get-current-users-profile/
+    4) Take from User's Profile "user ID":
+    5) Create empty playlist using user ID:
+    https://beta.developer.spotify.com/documentation/web-api/reference/playlists/create-playlist/
+    5) Add Artist's Top Tracks to a Playlist:
+    https://beta.developer.spotify.com/documentation/web-api/reference/playlists/add-tracks-to-playlist/
+
+    Returns: template
+    Template saies that playlist is successfully created and there is a link
+    to Index page
+    '''
+    # Check if user is logged in
+    if "access_data" not in session:
+        return redirect(url_for('index'))
+    # User is logged in
+    # Get access token from user's request
+    token = session['access_data']['access_token']
+
+    # Code that gives right artist ID
+    artistID = ''
+    # Get list of artist's top tracks URIs
+    track_uris = get_artist_top_tracks(artistID)
+    # Get user ID from Current User's Profile
+    userID = get_current_user_profile(token)
+    # Create empty playlist using user ID
+    playlistID = create_empty_playlist(userID)
+    # Add Artist's Top Tracks to a Playlist
+    response = add_traks_to_playlist(userID, playlistID, track_uris)
+    if not response:
+        return 'Sorry. An error accured. Playlist was not created'
+    return 'Playlist successfully created'
+
+
+# Spotify's examples on API documentation for now.
+def get_track(token):
+    headers = {
+                'Authorization': 'Bearer ' + token}
+    response = requests.get('https://api.spotify.com/v1/tracks/2TpxZ7JUBn3uw46aR7qd6V', headers=headers)
+    return response.json()
+
+
+# spotify's examples on API documentation for now.
+def search_art(token):
+    headers = {'Authorization': 'Bearer ' + token}
+    response = requests.get('https://api.spotify.com/v1/artists/0OdUWJ0sBjDrqHygGUXeCF', headers=headers)
+    return response.json()
 
 
 app.secret_key = os.urandom(30)
