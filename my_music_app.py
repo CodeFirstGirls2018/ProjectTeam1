@@ -4,7 +4,7 @@ import urllib
 from requests.auth import HTTPBasicAuth
 import os
 import sys
-# import pprint
+
 
 app = Flask("MyMusicApp")
 
@@ -41,12 +41,6 @@ def get_no_user_data_token():
     # pp.pprint(get_track(token))
     # pp.pprint(search_art(token))
     return token
-
-
-# This token can be used for Spotify API requests that do not involve user data
-# TOKEN_NO_USER_DATA = get_no_user_data_token()
-# we can ask this token ones and use it. If we want to modify it, it should be
-# stored in a way that provides to change it from different places (functions)
 
 
 def request_user_data_token(code):
@@ -111,7 +105,7 @@ def quote_params_val(val):
 
 def searh_request(token, payload):
     '''
-    Search request to Spotify APIself.
+    Search request to Spotify API.
     Can be used both types of tokens.
     Payload specifies what you would like to search (in particular: album,
     artist, playlist, or track)
@@ -121,9 +115,9 @@ def searh_request(token, payload):
     # Use the access token to access Spotify API
     authorization_header = {"Authorization": "Bearer {}".format(token)}
     # Prepare URL for search request
-    # url_arg = "&".join(["{}={}".format(key, quote_params_val(val))
-    #                    for key, val in payload.items()])
-    url_arg = params_query_string(payload)
+    url_arg = "&".join(["{}={}".format(key, quote_params_val(val))
+                       for key, val in payload.items()])
+    #url_arg = params_query_string(payload)
     auth_url = endpoint + "/?" + url_arg
     # Get request to Spotify API to search
     search_response = requests.get(auth_url, headers=authorization_header)
@@ -150,7 +144,7 @@ def get_artist_top_tracks(artistID):
     '''
     Function that gets Artist's Top Tracks
     Input: artist ID
-    Returns: uris - list of Spotify URIs for tracks
+    Returns: dict where key is a name of the track and value - uri of the track
     '''
     # Please, write the code
     pass
@@ -271,23 +265,41 @@ def artists_search():
     artist = form_data["artist"]
     # Get data in json format from search_artist request
     founded_artists = search_artist(token, artist)
-    # Create list of founded artists
-    artists_list = [art['name'] for art in founded_artists['artists']['items']]
-    return str(artists_list)
+    # Create dict of founded artists
+    artist_dict = dict()
+    for artist in founded_artists['artists']['items']:
+        artist_dict[str(artist["name"])] = str(artist["id"])
+
+    return render_template("req_to_show_tracks.html", artist_dict=artist_dict)
 
 
-@app.route("/playlist_created", methods=["POST"])
+@app.route("/show_top_tracks", methods=["POST"])
+def show_top_tracks():
+    '''
+    What to do:
+    1)Get an Artist's Top Tracks using artist ID
+    2) Display Artist's Top Tracks and ask user to create playlist
+    3) Create template
+    Returns: template
+    Template shows Artist's Top Tracks and asks user to create playlist
+    '''
+    # Get artist ID from the request form
+    form_data = request.form
+    artistID = form_data["artist"]
+    tracks = get_artist_top_tracks(artistID)
+    return render_template("req_to_create_playlist.html", artist_dict=tracks)
+
+
+@app.route("/create_playlist", methods=["POST"])
 def create_playlist():
     '''
     What to do:
-    1) Get artist ID;
-    2) Get an Artist's Top Tracks using artist ID;
-    3) Get Current User's Profile:
+    1) Get Current User's Profile:
     https://beta.developer.spotify.com/documentation/web-api/reference/users-profile/get-current-users-profile/
-    4) Take from User's Profile "user ID":
-    5) Create empty playlist using user ID:
+    2) Take from User's Profile "user ID":
+    3) Create empty playlist using user ID:
     https://beta.developer.spotify.com/documentation/web-api/reference/playlists/create-playlist/
-    5) Add Artist's Top Tracks to a Playlist:
+    4) Add Artist's Top Tracks to a Playlist:
     https://beta.developer.spotify.com/documentation/web-api/reference/playlists/add-tracks-to-playlist/
 
     Returns: template
@@ -301,8 +313,10 @@ def create_playlist():
     # Get access token from user's request
     token = session['access_data']['access_token']
 
-    # Code that gives right artist ID
-    artistID = ''
+    form_data = request.form
+    artistID = form_data["artist"]
+
+
     # Get list of artist's top tracks URIs
     track_uris = get_artist_top_tracks(artistID)
     # Get user ID from Current User's Profile

@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Ask to create playlist</title>
+  </head>
+  <body>
+    <p>Please, choose the Artist Ten Top Tacks you want see</p><br>
+
+
+      <div id="contact-form">
+        <form method="post" action="/show_top_tracks">
+          <label for="artist">Artist:</label><br>
+          <select name='artist'>
+            {% for key, value in artist_dict.iteritems() %}
+              <option value={{ value }}>{{ key }}</option>
+            {% endfor %}
+          </select>
+          <input type="submit" value="Submit" id="submit-button">
+        </form>
+
+      </div>
+  </body>
+</html>
