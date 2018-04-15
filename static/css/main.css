@@ -8,11 +8,16 @@ body {
   padding: 20px;
   }
 
+h1 {
+	font-weight: bold;
+}
+
  p {
  	color: white;
  }
 
 .btn {
+	font-weight: bold;
 	font-size:20px;
 	font:40px;
 	padding-top: 2px;
