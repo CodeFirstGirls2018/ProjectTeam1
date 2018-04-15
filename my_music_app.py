@@ -9,7 +9,7 @@ import sys
 app = Flask("MyMusicApp")
 
 # Spotify App data
-CLIENT_ID = "54c687fce796416ca546e356cd582560"
+CLIENT_ID = "81c646550b95493ea3c94f1950f57543"
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 
 # Port and Hostname that are used to launch App in heroku
