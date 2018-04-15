@@ -7,14 +7,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body>
-    <p>Welcome!</p><br>
-    <p>Please, Log in with Spotify </p><br>
-      <div id="contact-form">
-        <form method="get" action="/login">
-          <input type="submit" value="Log in" id="submit-button">
-        </form>
+    <div class="row paddedrow">
+      <div class="col-md-12">
+        <div class="container1">
+          <h1>Welcome!</h1><br>
+        </div>
+      </div>
+    </div>
 
+    <div class="row paddedrow">
+      <div class="col-md-6">
+        <div class="container2">
+          <p>Please, Log in with Spotify </p><br>
+            <div id="contact-form">
+              <form method="get" action="/login">
+                <input class="btn btn-secondary btn-lg" value="Log in" id="submit-button">
+              </form>
+            </div>
+        </div>
       </div>
 
+      <div class="col-md-6">
+        <div class="container3">
+          <p>Search city for upcoming gigs!</p>
+            <div id="contact-form">
+              <form method="post" action="/search_city">
+                <input type="city" id="city" name="city" required="required" placeholder="Enter City"><br>
+                <input class="btn btn-secondary btn-lg" value="Submit" id="submit-button">
+              </form>
+            </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
