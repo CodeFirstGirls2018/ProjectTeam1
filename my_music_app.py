@@ -1,16 +1,19 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import requests
 import urllib
+import json
+import random
 from requests.auth import HTTPBasicAuth
 import os
 import sys
-
 
 app = Flask("MyMusicApp")
 
 # Spotify App data
 CLIENT_ID = "81c646550b95493ea3c94f1950f57543"
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+
+SONGKICK_API_KEY = os.getenv('SONGKICK_API_KEY')
 
 # Port and Hostname that are used to launch App in heroku
 PORT = int(os.getenv("PORT", 8888))
@@ -329,20 +332,75 @@ def create_playlist():
         return 'Sorry. An error accured. Playlist was not created'
     return 'Playlist successfully created'
 
+def call_api_token(code):
+    endpoint = "https://accounts.spotify.com/api/token"
+    make_request = requests.post(endpoint,
+        data={"grant_type": "client_credentials",
+              "client_id": CLIENT_ID,
+              "client_secret": CLIENT_SECRET})
+    return make_request
 
-# Spotify's examples on API documentation for now.
-def get_track(token):
+def final():
+    code_api_token = request.args.get("code")
+    #missing checks, eg. if access denied
+    #no refresh token either
+    spo_response = call_api_token(code_api_token)
+    token = spo_response.json()["access_token"]
+    return token
+
+@app.route("/events_list", methods=["POST"])
+def city_results():
+    print request
+    form_data = request.form
+    city = form_data['city']
+    main_list = parse_metroid_page(search_location(city))[:10]
+    for item in main_list:
+        parse_artist_id = (search_artist(final(), item['artist_name']))
+        artist_id = (parse_artist_id['artists']['items'][0]['id'])
+        track_url = (get_sample_track(artist_id))
+        item['track_url'] = track_url
+    return render_template("events_list.html", main_list = main_list)
+
+
+def search_location(search_query):
+    o = urllib.urlopen("http://api.songkick.com/api/3.0/search/locations.json?query=" + search_query + "&apikey=" + SONGKICK_API_KEY)
+    page = json.loads(o.read())
+    a = page.values()
+    b = a[0][u'results']
+    c = b[u'location']
+    d = c[0][u'metroArea']
+    result = d[u'id']
+    return result
+
+def parse_metroid_page(metro_id):
+    metro_id = str(metro_id)
+    o = urllib.urlopen("http://api.songkick.com/api/3.0/metro_areas/" + metro_id + "/calendar.json?apikey=" + SONGKICK_API_KEY)
+    page = json.loads(o.read())
+    result = []
+    a = page.values()
+    b = a[0][u'results']
+    c = b[u'event']
+    for i in range(0, len(c)):
+        try:
+            item = {}
+            item['event'] = c[i][u'displayName']
+            item['artist_name'] = c[i][u'performance'][0][u'artist'][u'displayName']
+            item['location'] = c[i][u'location'][u'city']
+            item['start'] = c[i][u'start'][u'date']
+            item['link'] = c[i][u'uri']
+            result.append(item)
+        except KeyError:
+            continue
+    return result
+
+
+def get_sample_track (artist_id):
     headers = {
-                'Authorization': 'Bearer ' + token}
-    response = requests.get('https://api.spotify.com/v1/tracks/2TpxZ7JUBn3uw46aR7qd6V', headers=headers)
-    return response.json()
+    'Authorization': 'Bearer ' + final()}
+    response = requests.get('https://api.spotify.com/v1/artists/' + artist_id + '/top-tracks?country=SE', headers=headers)
+    return response.json()['tracks'][0]['preview_url']
 
 
-# spotify's examples on API documentation for now.
-def search_art(token):
-    headers = {'Authorization': 'Bearer ' + token}
-    response = requests.get('https://api.spotify.com/v1/artists/0OdUWJ0sBjDrqHygGUXeCF', headers=headers)
-    return response.json()
 
 
 app.secret_key = os.urandom(30)

@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="{{ url_for("static",
+    filename="css/main.css") }}">
+    <title>Search City for Events</title>
+  </head>
+  <body>
+    <p>Search city for upcoming gigs!</p>
+    <div>
+      {% for item in main_list %}
+      <audio controls>
+      <source src="track_url.ogg" type="audio/ogg">
+      <source src="{{ item["track_url"]}}" type="audio/mpeg">
+        Your browser does not support the audio element.
+      </audio>
+        {{ item["event"]}} </br>
+      {% endfor %}
+    </div>
+  </body>
+</html>
