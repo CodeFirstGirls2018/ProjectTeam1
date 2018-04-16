@@ -23,29 +23,6 @@ HOSTNAME = os.getenv("HEROKU_HOSTNAME", "http://localhost:{}".format(PORT))
 REDIRECT_URI = HOSTNAME + "/callback"
 
 
-# Requeest an access_token without asking user to log in
-def req_no_user_data_token(code):
-    endpoint = "https://accounts.spotify.com/api/token"
-    make_request = requests.post(endpoint,
-                                 data={"grant_type": "client_credentials",
-                                       "client_id": CLIENT_ID,
-                                       "client_secret": CLIENT_SECRET})
-    return make_request
-
-
-# Get an access_toke without asking user to log in
-def get_no_user_data_token():
-    code_api_token = request.args.get("code")
-    # missing checks, eg. if access denied
-    # no refresh token either
-    spo_response = req_no_user_data_token(code_api_token)
-    token = spo_response.json()["access_token"]
-    # pp.pprint(spo_response.json())
-    # pp.pprint(get_track(token))
-    # pp.pprint(search_art(token))
-    return token
-
-
 def request_user_data_token(code):
     """
     Finction that requests refresh and access tokens from Spotify API.
@@ -333,6 +310,7 @@ def create_playlist():
     return 'Playlist successfully created'
 
 
+# Requeest a token without asking user to log in
 def call_api_token(code):
     endpoint = "https://accounts.spotify.com/api/token"
     make_request = requests.post(endpoint,
@@ -342,6 +320,7 @@ def call_api_token(code):
     return make_request
 
 
+# Get a toke without asking user to log in
 def final():
     code_api_token = request.args.get("code")
     #missing checks, eg. if access denied
