@@ -6,6 +6,7 @@ import random
 from requests.auth import HTTPBasicAuth
 import os
 import sys
+import time
 
 app = Flask("MyMusicApp")
 
@@ -21,6 +22,56 @@ HOSTNAME = os.getenv("HEROKU_HOSTNAME", "http://localhost:{}".format(PORT))
 
 # Redirect URI for Spotify API
 REDIRECT_URI = HOSTNAME + "/callback"
+
+
+# Requeest a token without asking user to log in
+def call_api_token():
+    endpoint = "https://accounts.spotify.com/api/token"
+    make_request = requests.post(endpoint,
+                                 data={"grant_type": "client_credentials",
+                                       "client_id": CLIENT_ID,
+                                       "client_secret": CLIENT_SECRET})
+    return make_request
+
+
+# Get a token without asking user to log in
+def final():
+    spo_response = call_api_token()
+    # Check response from Spotify API
+    # Something went wrong. Ask user to try again
+    if spo_response.status_code != 200:
+        return redirect(url_for('index'))
+    return spo_response.json()
+
+
+# Class that stores token not related to user
+class TokenStorage:
+    def __init__(self):
+        self.token = None
+        self.expire_in = None
+        self.start = None
+
+    # Check if token has exired
+    def expire(self, time_now):
+        if (time_now - self.start) > self.expire_in:
+            return True
+        return False
+
+    # Get token first time or if expired
+    def get_token(self, time_now):
+        if self.token is None or self.expire(time_now):
+            access_data = final()
+            self.token = access_data['access_token']
+            self.expire_in = access_data['expires_in']
+            self.start = time.time()
+        # print self.token
+        return self.token
+
+
+# Token to access to Spotify data that do not need access to user related data
+# It is stored as class TokenStorage object
+# To get token - TOKEN.get_token(time_now)
+TOKEN = TokenStorage()
 
 
 def request_user_data_token(code):
@@ -310,33 +361,14 @@ def create_playlist():
     return 'Playlist successfully created'
 
 
-# Requeest a token without asking user to log in
-def call_api_token(code):
-    endpoint = "https://accounts.spotify.com/api/token"
-    make_request = requests.post(endpoint,
-        data={"grant_type": "client_credentials",
-              "client_id": CLIENT_ID,
-              "client_secret": CLIENT_SECRET})
-    return make_request
-
-
-# Get a toke without asking user to log in
-def final():
-    code_api_token = request.args.get("code")
-    #missing checks, eg. if access denied
-    #no refresh token either
-    spo_response = call_api_token(code_api_token)
-    token = spo_response.json()["access_token"]
-    return token
-
-
 @app.route("/events_list", methods=["POST"])
 def city_results():
-    print request
+    # print request
     form_data = request.form
     city = form_data['city']
     main_list = parse_metroid_page(search_location(city))[:10]
-    token = final()
+    # Not related to user token is stored as class TokenStorage object
+    token = TOKEN.get_token(time.time())
     for item in main_list:
         parse_artist_id = (search_artist(token, item['artist_name']))
         artist_id = (parse_artist_id['artists']['items'][0]['id'])
@@ -381,7 +413,13 @@ def parse_metroid_page(metro_id):
 
 
 def get_sample_track(artist_id):
-    token = final()
+    '''
+    Function that uses artist_id to get the first track from artist's top-tracks
+    Input: artist ID
+    Returns: preview URL of the first track from artist's top-tracks
+    '''
+    # Not related to user token is stored as class TokenStorage object
+    token = TOKEN.get_token(time.time())
     headers = {
                 'Authorization': 'Bearer ' + token}
     response = requests.get('https://api.spotify.com/v1/artists/' + artist_id
