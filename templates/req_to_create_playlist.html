@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Ask to create playlist</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link href='../static/css/main.css' rel='stylesheet'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+
+    <div class="row paddedrow">
+      <div class="col-md-6">
+        <div class="container5">
+          <p>{{ name }}'s Top Tacks</p><br>
+          {% if picture %}
+           <img src={{ picture[0]["url"] }}>
+          {% endif %}
+            <div id="contact-form">
+              <form method="post" action="/create_playlist">
+                <input class="btn btn-secondary btn-lg" type="submit" value="Create playlist" id="submit-button">
+              </form>
+            </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="container4">
+              {% for key, value in tracks_dict.iteritems() %}
+               <p id="songs"> {{ key }} </p>
+               {% if value["preview_url"] %}
+                <audio controls>
+                <source src="track_url.ogg" type="audio/ogg">
+                <source src="{{ value["preview_url"]}}" type="audio/mpeg">
+                 Your browser does not support the audio element.
+                </audio>
+              {% endif %}
+
+             {% endfor %}
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -2,10 +2,11 @@ from flask import Flask, render_template, request, redirect, url_for, session
 import requests
 import urllib
 import json
-import random
+# import random
 from requests.auth import HTTPBasicAuth
 import os
 import sys
+import time
 
 from pprint import pprint
 
@@ -25,8 +26,8 @@ HOSTNAME = os.getenv("HEROKU_HOSTNAME", "http://localhost:{}".format(PORT))
 REDIRECT_URI = HOSTNAME + "/callback"
 
 
-# Requeest an access_token without asking user to log in
-def req_no_user_data_token(code):
+# Requeest a token without asking user to log in
+def call_api_token():
     endpoint = "https://accounts.spotify.com/api/token"
     make_request = requests.post(endpoint,
                                  data={"grant_type": "client_credentials",
@@ -35,17 +36,46 @@ def req_no_user_data_token(code):
     return make_request
 
 
-# Get an access_toke without asking user to log in
-def get_no_user_data_token():
-    code_api_token = request.args.get("code")
-    # missing checks, eg. if access denied
-    # no refresh token either
-    spo_response = req_no_user_data_token(code_api_token)
-    token = spo_response.json()["access_token"]
-    # pp.pprint(spo_response.json())
-    # pp.pprint(get_track(token))
-    # pp.pprint(search_art(token))
-    return token
+# Get a token without asking user to log in
+def final():
+    spo_response = call_api_token()
+    # Check response from Spotify API
+    # Something went wrong. Ask user to try again
+    if spo_response.status_code != 200:
+        return redirect(url_for('index'))
+    return spo_response.json()
+
+
+# Class that stores token not related to user
+class TokenStorage:
+    def __init__(self):
+        self.token = None
+        self.expire_in = None
+        self.start = None
+
+    # Check if token has exired
+    def expire(self, time_now):
+        print "GET IN EXPIRE"
+        print(time_now - self.start)
+        if (time_now - self.start) > self.expire_in:
+            return True
+        return False
+
+    # Get token first time or if expired
+    def get_token(self, time_now):
+        if self.token is None or self.expire(time_now):
+            access_data = final()
+            self.token = access_data['access_token']
+            self.expire_in = access_data['expires_in']
+            self.start = time.time()
+        # print self.token
+        return self.token
+
+
+# Token to access to Spotify data that do not need access to user related data
+# It is stored as class TokenStorage object
+# To get token - TOKEN.get_token(time_now)
+TOKEN = TokenStorage()
 
 
 def request_user_data_token(code):
@@ -122,7 +152,7 @@ def searh_request(token, payload):
     # Prepare URL for search request
     url_arg = "&".join(["{}={}".format(key, quote_params_val(val))
                        for key, val in payload.items()])
-    #url_arg = params_query_string(payload)
+    # url_arg = params_query_string(payload)
     auth_url = endpoint + "/?" + url_arg
     # Get request to Spotify API to search
     search_response = requests.get(auth_url, headers=authorization_header)
@@ -145,15 +175,39 @@ def search_artist(token, artist):
     return searh_request(token, payload)
 
 
-def get_artist_top_tracks(artistID):
+def get_artist_top_tracks(token, artistID):
     '''
     Function that gets Artist's Top Tracks
-    Input: artist ID
+    Input: artist ID, token
     Returns: dict where key is a name of the track and value - uri of the track
     '''
-    # Please, write the code
-    pass
+    # Endpoint to search
+    endpoint = 'https://api.spotify.com/v1/artists/' + artistID + '/top-tracks'
+    # Use the access token to access Spotify API
+    authorization_header = {"Authorization": "Bearer {}".format(token)}
+    payload = {"country": "GB"}
+    # Creating request URL
+    url_arg = params_query_string(payload)
+    auth_url = endpoint + "/?" + url_arg
+    # Request Spotify API to get Top tracks
+    top_tracks = requests.get(auth_url, headers=authorization_header)
+    # Check if Spotify have Top Track for this artist
 
+    return top_tracks.json()
+
+
+def get_artist_data_by_id(artistID, token):
+    '''
+    Request Spotify API for artist data using artist ID
+    '''
+    # Endpint to get artist related form_data
+    endpoint = "https://api.spotify.com/v1/artists/" + artistID
+    # Authorization header
+    authorization_header = {"Authorization": "Bearer {}".format(token)}
+    # Request Spotify API artist related data
+    artist_data = requests.get(endpoint, headers=authorization_header)
+    # Returns artist_data in json format
+    return artist_data.json()
 
 def get_current_user_profile(user_data_token):
     '''
@@ -193,9 +247,10 @@ def add_traks_to_playlist(userID, playlistID, uris):
 @app.route("/")
 def index():
     '''
-    Main packages
-    !!! On main page should be added:
-    1) In file index.html: ask user what track he/she would like to listen to.
+    Ask user:
+    1) Artist to search, see artist's top tracks, listen 30 sec preview,
+    add artist's top tracks to user's Spotify account new playlist
+    2) Search city for upcoming gigs.
     '''
     return render_template("index.html")
 
@@ -212,7 +267,7 @@ def requestAuth():
               "response_type": "code",
               "redirect_uri": REDIRECT_URI,
               # "state": "sdfdskjfhkdshfkj",
-              "scope": "playlist-modify-public playlist-modify-private",
+              "scope": "playlist-modify-public user-read-private",
               # "show_dialog": True
             }
 
@@ -256,23 +311,36 @@ def callback():
 @app.route("/search_artist", methods=["POST"])
 def artists_search():
     """
-    Example decorator that uses access_data to get data from Spotify API.
-    In this example the artist is searched by his/her name
+    This decorator searches the artist by name
+    Returns:
+    1) Template with found artists that match user input
+    2) Template that asks to repeat artist search in case of
+    previous unsuccessful attempt.
     """
     # Check if user is logged in
-    if "access_data" not in session:
-        return redirect(url_for('index'))
+    # if "access_data" not in session:
+    #     return redirect(url_for('index'))
     # User is logged in
-    # Get access token from user's request
-    token = session['access_data']['access_token']
-    # Get data that user post to App
+    # # Get access token from user's request
+    # token = session['access_data']['access_token']
+
+    # Not related to user token is stored as class TokenStorage object
+    token = TOKEN.get_token(time.time())
+
+    # Get data that user post to app on index page
     form_data = request.form
     artist = form_data["artist"]
+
     # Get data in json format from search_artist request
-    founded_artists = search_artist(token, artist)
-    # Create dict of founded artists
+    found_artists = search_artist(token, artist)
+
+    # Check if there is artist match at Spotify
+    if not found_artists['artists']['items']:
+        return render_template("ask_artist.html", artist=artist.title())
+
+    # Create dict of found artists
     artist_dict = dict()
-    for artist in founded_artists['artists']['items']:
+    for artist in found_artists['artists']['items']:
         artist_dict[str(artist["name"])] = str(artist["id"])
 
     return render_template("req_to_show_tracks.html", artist_dict=artist_dict)
@@ -281,18 +349,45 @@ def artists_search():
 @app.route("/show_top_tracks", methods=["POST"])
 def show_top_tracks():
     '''
-    What to do:
-    1)Get an Artist's Top Tracks using artist ID
-    2) Display Artist's Top Tracks and ask user to create playlist
-    3) Create template
-    Returns: template
-    Template shows Artist's Top Tracks and asks user to create playlist
+    This decorator does next:
+    1) Gets an Artist's Top Tracks using artist ID
+    2) Displays Artist name, image, Artist's Top Tracks and
+    asks user to create playlist
+    Returns: Template shows Artist's Top Tracks and asks user
+             to create playlist
     '''
+    # # Check if user is logged in
+    # if "access_data" not in session:
+    #     return redirect(url_for('index'))
+    # User is logged in
+    # Get access token from user's request
+    # token = session['access_data']['access_token']
+
+    # Not related to user token is stored as class TokenStorage object
+    token = TOKEN.get_token(time.time())
+
     # Get artist ID from the request form
     form_data = request.form
     artistID = form_data["artist"]
-    tracks = get_artist_top_tracks(artistID)
-    return render_template("req_to_create_playlist.html", artist_dict=tracks)
+    # Get artist data in json format
+    artist_data = get_artist_data_by_id(artistID, token)
+    # Artist name
+    artist_name = artist_data["name"]
+    # Artist picture
+    artist_pic = artist_data["images"]
+    # Get artist top tracks
+    top_tracks = get_artist_top_tracks(token, artistID)
+    print top_tracks
+    # Initiate dictionary to story only needed data
+    tracks_dict = {}
+    # Storing in dict name, uri and preview_url of top tracks
+    for track in top_tracks["tracks"]:
+        tracks_dict[track["name"]] = {"uri": track["uri"],
+                                      "preview_url": track["preview_url"]}
+    return render_template("req_to_create_playlist.html",
+                           tracks_dict=tracks_dict,
+                           name=artist_name.title(),
+                           picture=artist_pic)
 
 
 @app.route("/create_playlist", methods=["POST"])
@@ -334,31 +429,17 @@ def create_playlist():
         return 'Sorry. An error accured. Playlist was not created'
     return 'Playlist successfully created'
 
-def call_api_token(code):
-    endpoint = "https://accounts.spotify.com/api/token"
-    make_request = requests.post(endpoint,
-        data={"grant_type": "client_credentials",
-              "client_id": CLIENT_ID,
-              "client_secret": CLIENT_SECRET})
-    return make_request
-
-def final():
-    code_api_token = request.args.get("code")
-    #missing checks, eg. if access denied
-    #no refresh token either
-    spo_response = call_api_token(code_api_token)
-    token = spo_response.json()["access_token"]
-    return token
 
 @app.route("/events_list", methods=["POST"])
 def city_results():
     form_data = request.form
     city = form_data['city']
     main_list = parse_metroid_page(search_location(city))[:10]
-    pprint (main_list)
+    # Not related to user token is stored as class TokenStorage object
+    token = TOKEN.get_token(time.time())
     for item in main_list:
         try:
-            parse_artist_id = (search_artist(final(), item['artist_name']))
+            parse_artist_id = (search_artist(token, item['artist_name']))
             artist_id = (parse_artist_id['artists']['items'][0]['id'])
             track_url = (get_sample_track(artist_id))
             item['track_url'] = track_url
@@ -368,7 +449,8 @@ def city_results():
 
 
 def search_location(search_query):
-    o = urllib.urlopen("http://api.songkick.com/api/3.0/search/locations.json?query=" + search_query + "&apikey=" + SONGKICK_API_KEY)
+    o = urllib.urlopen("http://api.songkick.com/api/3.0/search/locations.json?query="
+                       + search_query + "&apikey=" + SONGKICK_API_KEY)
     page = json.loads(o.read())
     a = page.values()
     b = a[0][u'results']
@@ -377,9 +459,11 @@ def search_location(search_query):
     result = d[u'id']
     return result
 
+
 def parse_metroid_page(metro_id):
     metro_id = str(metro_id)
-    o = urllib.urlopen("http://api.songkick.com/api/3.0/metro_areas/" + metro_id + "/calendar.json?apikey=" + SONGKICK_API_KEY)
+    o = urllib.urlopen("http://api.songkick.com/api/3.0/metro_areas/"
+                       + metro_id + "/calendar.json?apikey=" + SONGKICK_API_KEY)
     page = json.loads(o.read())
     result = []
     a = page.values()
@@ -399,13 +483,19 @@ def parse_metroid_page(metro_id):
     return result
 
 
-def get_sample_track (artist_id):
+def get_sample_track(artist_id):
+    '''
+    Function that uses artist_id to get the first track from artist's top-tracks
+    Input: artist ID
+    Returns: preview URL of the first track from artist's top-tracks
+    '''
+    # Not related to user token is stored as class TokenStorage object
+    token = TOKEN.get_token(time.time())
     headers = {
-    'Authorization': 'Bearer ' + final()}
-    response = requests.get('https://api.spotify.com/v1/artists/' + artist_id + '/top-tracks?country=SE', headers=headers)
+                'Authorization': 'Bearer ' + token}
+    response = requests.get('https://api.spotify.com/v1/artists/' + artist_id
+                            + '/top-tracks?country=SE', headers=headers)
     return response.json()['tracks'][0]['preview_url']
-
-
 
 
 app.secret_key = os.urandom(30)
