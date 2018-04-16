@@ -210,7 +210,7 @@ def requestAuth():
               "response_type": "code",
               "redirect_uri": REDIRECT_URI,
               # "state": "sdfdskjfhkdshfkj",
-              "scope": "playlist-modify-public playlist-modify-private",
+              "scope": "playlist-modify-public user-read-private",
               # "show_dialog": True
             }
 
@@ -332,6 +332,7 @@ def create_playlist():
         return 'Sorry. An error accured. Playlist was not created'
     return 'Playlist successfully created'
 
+
 def call_api_token(code):
     endpoint = "https://accounts.spotify.com/api/token"
     make_request = requests.post(endpoint,
@@ -339,6 +340,7 @@ def call_api_token(code):
               "client_id": CLIENT_ID,
               "client_secret": CLIENT_SECRET})
     return make_request
+
 
 def final():
     code_api_token = request.args.get("code")
@@ -348,22 +350,25 @@ def final():
     token = spo_response.json()["access_token"]
     return token
 
+
 @app.route("/events_list", methods=["POST"])
 def city_results():
     print request
     form_data = request.form
     city = form_data['city']
     main_list = parse_metroid_page(search_location(city))[:10]
+    token = final()
     for item in main_list:
-        parse_artist_id = (search_artist(final(), item['artist_name']))
+        parse_artist_id = (search_artist(token, item['artist_name']))
         artist_id = (parse_artist_id['artists']['items'][0]['id'])
         track_url = (get_sample_track(artist_id))
         item['track_url'] = track_url
-    return render_template("events_list.html", main_list = main_list)
+    return render_template("events_list.html", main_list=main_list)
 
 
 def search_location(search_query):
-    o = urllib.urlopen("http://api.songkick.com/api/3.0/search/locations.json?query=" + search_query + "&apikey=" + SONGKICK_API_KEY)
+    o = urllib.urlopen("http://api.songkick.com/api/3.0/search/locations.json?query="
+                       + search_query + "&apikey=" + SONGKICK_API_KEY)
     page = json.loads(o.read())
     a = page.values()
     b = a[0][u'results']
@@ -372,9 +377,11 @@ def search_location(search_query):
     result = d[u'id']
     return result
 
+
 def parse_metroid_page(metro_id):
     metro_id = str(metro_id)
-    o = urllib.urlopen("http://api.songkick.com/api/3.0/metro_areas/" + metro_id + "/calendar.json?apikey=" + SONGKICK_API_KEY)
+    o = urllib.urlopen("http://api.songkick.com/api/3.0/metro_areas/"
+                       + metro_id + "/calendar.json?apikey=" + SONGKICK_API_KEY)
     page = json.loads(o.read())
     result = []
     a = page.values()
@@ -394,13 +401,13 @@ def parse_metroid_page(metro_id):
     return result
 
 
-def get_sample_track (artist_id):
+def get_sample_track(artist_id):
+    token = final()
     headers = {
-    'Authorization': 'Bearer ' + final()}
-    response = requests.get('https://api.spotify.com/v1/artists/' + artist_id + '/top-tracks?country=SE', headers=headers)
+                'Authorization': 'Bearer ' + token}
+    response = requests.get('https://api.spotify.com/v1/artists/' + artist_id
+                            + '/top-tracks?country=SE', headers=headers)
     return response.json()['tracks'][0]['preview_url']
-
-
 
 
 app.secret_key = os.urandom(30)
