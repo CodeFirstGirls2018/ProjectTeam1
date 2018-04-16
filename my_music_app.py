@@ -7,6 +7,8 @@ from requests.auth import HTTPBasicAuth
 import os
 import sys
 
+from pprint import pprint
+
 app = Flask("MyMusicApp")
 
 # Spotify App data
@@ -350,15 +352,18 @@ def final():
 
 @app.route("/events_list", methods=["POST"])
 def city_results():
-    print request
     form_data = request.form
     city = form_data['city']
     main_list = parse_metroid_page(search_location(city))[:10]
+    pprint (main_list)
     for item in main_list:
-        parse_artist_id = (search_artist(final(), item['artist_name']))
-        artist_id = (parse_artist_id['artists']['items'][0]['id'])
-        track_url = (get_sample_track(artist_id))
-        item['track_url'] = track_url
+        try:
+            parse_artist_id = (search_artist(final(), item['artist_name']))
+            artist_id = (parse_artist_id['artists']['items'][0]['id'])
+            track_url = (get_sample_track(artist_id))
+            item['track_url'] = track_url
+        except KeyError:
+            continue
     return render_template("events_list.html", main_list = main_list)
 
 

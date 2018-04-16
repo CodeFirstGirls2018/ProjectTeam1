@@ -5,17 +5,23 @@
     filename="css/main.css") }}">
     <title>Search City for Events</title>
   </head>
-  <body>
-    <p>Search city for upcoming gigs!</p>
-    <div>
-      {% for item in main_list %}
-      <audio controls>
-      <source src="track_url.ogg" type="audio/ogg">
-      <source src="{{ item["track_url"]}}" type="audio/mpeg">
-        Your browser does not support the audio element.
-      </audio>
-        {{ item["event"]}} </br>
-      {% endfor %}
-    </div>
-  </body>
-</html>
+    <body>
+      <div class="textformat">
+        <div class="container6">
+
+        <p>Listen to samples and pick your event!</p>
+          {% for item in main_list %}
+            <audio controls>
+            <source src="{{ item["track_url"]}}" type="audio/mpeg">
+            </audio>
+
+            <form action="{{ item["link"]}}">
+            {{ item["event"]}}
+            <input type="submit" value="Buy Tickets" id="submit-button">
+            </form>
+
+          {% endfor %}
+          </div>
+        </div>
+    </body>
+  </html>
