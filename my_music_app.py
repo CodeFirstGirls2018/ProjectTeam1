@@ -80,7 +80,7 @@ TOKEN = TokenStorage()
 
 def request_user_data_token(code):
     """
-    Finction that requests refresh and access tokens from Spotify API.
+    Function that requests refresh and access tokens from Spotify API.
     This token allows to change and request user related data.
     Step 4 in Guide
     """
@@ -432,6 +432,11 @@ def create_playlist():
 
 @app.route("/events_list", methods=["POST"])
 def city_results():
+    '''
+    Function captures city, searchs and parses metroID.
+    Then parses the result (main_list) for track_url, adds it to the main_list of results
+    and passes it to html to be listed.
+    '''
     form_data = request.form
     city = form_data['city']
     main_list = parse_metroid_page(search_location(city))[:10]
@@ -449,6 +454,9 @@ def city_results():
 
 
 def search_location(search_query):
+    '''
+    Function searchs city name, returns metroID.
+    '''
     o = urllib.urlopen("http://api.songkick.com/api/3.0/search/locations.json?query="
                        + search_query + "&apikey=" + SONGKICK_API_KEY)
     page = json.loads(o.read())
@@ -461,6 +469,10 @@ def search_location(search_query):
 
 
 def parse_metroid_page(metro_id):
+    '''
+    Songkick groups locations under metroIDs to make recommendations to users.
+    Function parses metroID to get event, artist_name, location, date and ticket sale link.
+    '''
     metro_id = str(metro_id)
     o = urllib.urlopen("http://api.songkick.com/api/3.0/metro_areas/"
                        + metro_id + "/calendar.json?apikey=" + SONGKICK_API_KEY)
