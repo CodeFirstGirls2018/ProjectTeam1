@@ -5,7 +5,7 @@ body {
   background-repeat: no-repeat;
   background-attachment: fixed;
   background-size: cover;
-  padding: 20px;
+  padding: 45px;
   }
 
 h1 {
@@ -16,6 +16,16 @@ h1 {
  	color: white;
  }
 
+ .navbar-inverse {
+    	background-color: rgba(0, 0, 0, 0.7);
+ }
+
+ .navbar-brand {
+   color: white;
+   font-size: 30px;
+ }
+
+
 .btn {
 	font-weight: bold;
 	font-size:20px;
@@ -23,27 +33,40 @@ h1 {
 	padding-top: 2px;
 }
 
+.paddedrow {
+ padding: 30px;
+}
+
+
 .container2 {
   	background-color: rgba(0, 0, 0, 0.4);
   	background-position: absolute;
-  	font-size: 30px;
+  	font-size: 23px;
   	font-weight: bold;
   	width: 100%;
 	height: 250px;
 	background-size: cover;
 	background-repeat: no-repeat;
-	padding: 5px;
+	padding: 30px;
+  text-align: center;
 }
+
+
 
 .container3 {
   	background-color: rgba(0, 0, 0, 0.4);
   	background-position: absolute;
-  	font-size: 30px;
+  	font-size: 23px;
   	font-weight: bold;
   	text-color: white;
   	width: 100%;
 	height: 250px;
 	background-size: cover;
 	background-repeat: no-repeat;
-	padding: 5px;
+	padding: 30px;
+  text-align: center;
+}
+
+#submit-button{
+  /* padding: 60px; */
 }
