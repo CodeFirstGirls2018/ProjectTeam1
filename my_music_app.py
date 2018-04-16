@@ -53,6 +53,8 @@ class TokenStorage:
 
     # Check if token has exired
     def expire(self, time_now):
+        print "GET IN EXPIRE"
+        print(time_now - self.start)
         if (time_now - self.start) > self.expire_in:
             return True
         return False
@@ -171,15 +173,39 @@ def search_artist(token, artist):
     return searh_request(token, payload)
 
 
-def get_artist_top_tracks(artistID):
+def get_artist_top_tracks(token, artistID):
     '''
     Function that gets Artist's Top Tracks
-    Input: artist ID
+    Input: artist ID, token
     Returns: dict where key is a name of the track and value - uri of the track
     '''
-    # Please, write the code
-    pass
+    # Endpoint to search
+    endpoint = 'https://api.spotify.com/v1/artists/' + artistID + '/top-tracks'
+    # Use the access token to access Spotify API
+    authorization_header = {"Authorization": "Bearer {}".format(token)}
+    payload = {"country": "GB"}
+    # Creating request URL
+    url_arg = params_query_string(payload)
+    auth_url = endpoint + "/?" + url_arg
+    # Request Spotify API to get Top tracks
+    top_tracks = requests.get(auth_url, headers=authorization_header)
+    # Check if Spotify have Top Track for this artist
 
+    return top_tracks.json()
+
+
+def get_artist_data_by_id(artistID, token):
+    '''
+    Request Spotify API for artist data using artist ID
+    '''
+    # Endpint to get artist related form_data
+    endpoint = "https://api.spotify.com/v1/artists/" + artistID
+    # Authorization header
+    authorization_header = {"Authorization": "Bearer {}".format(token)}
+    # Request Spotify API artist related data
+    artist_data = requests.get(endpoint, headers=authorization_header)
+    # Returns artist_data in json format
+    return artist_data.json()
 
 def get_current_user_profile(user_data_token):
     '''
@@ -321,18 +347,45 @@ def artists_search():
 @app.route("/show_top_tracks", methods=["POST"])
 def show_top_tracks():
     '''
-    What to do:
-    1) Get an Artist's Top Tracks using artist ID
-    2) Display Artist's Top Tracks and ask user to create playlist
-    3) Create template
-    Returns: template
-    Template shows Artist's Top Tracks and asks user to create playlist
+    This decorator does next:
+    1) Gets an Artist's Top Tracks using artist ID
+    2) Displays Artist name, image, Artist's Top Tracks and
+    asks user to create playlist
+    Returns: Template shows Artist's Top Tracks and asks user
+             to create playlist
     '''
+    # # Check if user is logged in
+    # if "access_data" not in session:
+    #     return redirect(url_for('index'))
+    # User is logged in
+    # Get access token from user's request
+    # token = session['access_data']['access_token']
+
+    # Not related to user token is stored as class TokenStorage object
+    token = TOKEN.get_token(time.time())
+
     # Get artist ID from the request form
     form_data = request.form
     artistID = form_data["artist"]
-    tracks = get_artist_top_tracks(artistID)
-    return render_template("req_to_create_playlist.html", artist_dict=tracks)
+    # Get artist data in json format
+    artist_data = get_artist_data_by_id(artistID, token)
+    # Artist name
+    artist_name = artist_data["name"]
+    # Artist picture
+    artist_pic = artist_data["images"]
+    # Get artist top tracks
+    top_tracks = get_artist_top_tracks(token, artistID)
+    print top_tracks
+    # Initiate dictionary to story only needed data
+    tracks_dict = {}
+    # Storing in dict name, uri and preview_url of top tracks
+    for track in top_tracks["tracks"]:
+        tracks_dict[track["name"]] = {"uri": track["uri"],
+                                      "preview_url": track["preview_url"]}
+    return render_template("req_to_create_playlist.html",
+                           tracks_dict=tracks_dict,
+                           name=artist_name.title(),
+                           picture=artist_pic)
 
 
 @app.route("/create_playlist", methods=["POST"])
