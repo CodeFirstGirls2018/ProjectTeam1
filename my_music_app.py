@@ -448,7 +448,7 @@ def city_results():
             artist_id = (parse_artist_id['artists']['items'][0]['id'])
             track_url = (get_sample_track(artist_id))
             item['track_url'] = track_url
-        except KeyError:
+        except (KeyError, IndexError):
             continue
     return render_template("events_list.html", main_list = main_list)
 
