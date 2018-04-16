@@ -18,12 +18,12 @@
     <div class="row paddedrow">
       <div class="col-md-6">
         <div class="container2">
-          <p>Make a playlist of Artist's Top Tracks<br>
-            Please, Log in with Spotify </p><br>
+          <p>Search artist to listen to?</p><br>
             <div id="contact-form">
-              <form method="get" action="/login">
-                <input class="btn btn-secondary btn-lg" type="submit" value="Log in" id="submit-button">
-              </form>
+                <form method="post" action="/search_artist">
+                  <input type="text" id="artist" name="artist" required="required" placeholder="Enter Artist"><br>
+                  <input class="btn btn-secondary btn-lg" type="submit" value="Find" id="submit-button">
+                </form>
             </div>
         </div>
       </div>

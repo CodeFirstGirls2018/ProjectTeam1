@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 import requests
 import urllib
 import json
-import random
+# import random
 from requests.auth import HTTPBasicAuth
 import os
 import sys
@@ -148,7 +148,7 @@ def searh_request(token, payload):
     # Prepare URL for search request
     url_arg = "&".join(["{}={}".format(key, quote_params_val(val))
                        for key, val in payload.items()])
-    #url_arg = params_query_string(payload)
+    # url_arg = params_query_string(payload)
     auth_url = endpoint + "/?" + url_arg
     # Get request to Spotify API to search
     search_response = requests.get(auth_url, headers=authorization_header)
@@ -219,9 +219,10 @@ def add_traks_to_playlist(userID, playlistID, uris):
 @app.route("/")
 def index():
     '''
-    Main packages
-    !!! On main page should be added:
-    1) In file index.html: ask user what track he/she would like to listen to.
+    Ask user:
+    1) Artist to search, see artist's top tracks, listen 30 sec preview,
+    add artist's top tracks to user's Spotify account new playlist
+    2) Search city for upcoming gigs.
     '''
     return render_template("index.html")
 
@@ -282,23 +283,36 @@ def callback():
 @app.route("/search_artist", methods=["POST"])
 def artists_search():
     """
-    Example decorator that uses access_data to get data from Spotify API.
-    In this example the artist is searched by his/her name
+    This decorator searches the artist by name
+    Returns:
+    1) Template with found artists that match user input
+    2) Template that asks to repeat artist search in case of
+    previous unsuccessful attempt.
     """
     # Check if user is logged in
-    if "access_data" not in session:
-        return redirect(url_for('index'))
+    # if "access_data" not in session:
+    #     return redirect(url_for('index'))
     # User is logged in
-    # Get access token from user's request
-    token = session['access_data']['access_token']
-    # Get data that user post to App
+    # # Get access token from user's request
+    # token = session['access_data']['access_token']
+
+    # Not related to user token is stored as class TokenStorage object
+    token = TOKEN.get_token(time.time())
+
+    # Get data that user post to app on index page
     form_data = request.form
     artist = form_data["artist"]
+
     # Get data in json format from search_artist request
-    founded_artists = search_artist(token, artist)
-    # Create dict of founded artists
+    found_artists = search_artist(token, artist)
+
+    # Check if there is artist match at Spotify
+    if not found_artists['artists']['items']:
+        return render_template("ask_artist.html", artist=artist.title())
+
+    # Create dict of found artists
     artist_dict = dict()
-    for artist in founded_artists['artists']['items']:
+    for artist in found_artists['artists']['items']:
         artist_dict[str(artist["name"])] = str(artist["id"])
 
     return render_template("req_to_show_tracks.html", artist_dict=artist_dict)
@@ -308,7 +322,7 @@ def artists_search():
 def show_top_tracks():
     '''
     What to do:
-    1)Get an Artist's Top Tracks using artist ID
+    1) Get an Artist's Top Tracks using artist ID
     2) Display Artist's Top Tracks and ask user to create playlist
     3) Create template
     Returns: template
