@@ -55,8 +55,6 @@ class TokenStorage:
 
     # Check if token has exired
     def expire(self, time_now):
-        print "GET IN EXPIRE"
-        print(time_now - self.start)
         if (time_now - self.start) > self.expire_in:
             return True
         return False
@@ -341,7 +339,7 @@ def artists_search():
     # Create dict of found artists
     artist_dict = dict()
     for artist in found_artists['artists']['items']:
-        artist_dict[str(artist["name"])] = str(artist["id"])
+        artist_dict[artist["name"]] = str(artist["id"])
 
     return render_template("req_to_show_tracks.html", artist_dict=artist_dict)
 
@@ -377,7 +375,7 @@ def show_top_tracks():
     artist_pic = artist_data["images"]
     # Get artist top tracks
     top_tracks = get_artist_top_tracks(token, artistID)
-    print top_tracks
+    # print top_tracks
     # Initiate dictionary to story only needed data
     tracks_dict = {}
     # Storing in dict name, uri and preview_url of top tracks
