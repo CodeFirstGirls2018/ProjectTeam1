@@ -93,20 +93,21 @@ def request_user_data_token(code):
                                   auth=HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET),
                                   data=payload)
 
+    # print "RESPONSE", response_data
     # Check response from Spotify API
     # Something went wrong. Ask user to try to login again
     if response_data.status_code != 200:
         return redirect(url_for('index'))
 
     # Success. Convert response data in json
-    data = response_data.json()
-    access_data = {
-        'access_token': data["access_token"],
-        'refresh_token': data["refresh_token"],
-        'token_type': data["token_type"],
-        'expires_in': data["expires_in"],
-    }
-    return access_data
+    # data = response_data.json()
+    # access_data = {
+    #     'access_token': data["access_token"],
+    #     'refresh_token': data["refresh_token"],
+    #     'token_type': data["token_type"],
+    #     'expires_in': data["expires_in"],
+    # }
+    return response_data.json()
 
 
 # Function that checks if it is Python3 version
@@ -207,27 +208,44 @@ def get_artist_data_by_id(artistID, token):
     # Returns artist_data in json format
     return artist_data.json()
 
+
 def get_current_user_profile(user_data_token):
     '''
     Function that Get Current User's Profile
     Input: user data related token
     Returns: user ID
     '''
-    # Please, write the code
-    pass
+    # Endpint to get current user profile
+    endpoint = "https://api.spotify.com/v1/me"
+    # Authorization header
+    authorization_header = {"Authorization": "Bearer {}".format(user_data_token)}
+    # Request Spotify API artist related data
+    user_data = requests.get(endpoint, headers=authorization_header)
+    # Returns user_data in json format
+    return user_data.json()
 
 
-def create_empty_playlist(userID):
+def create_empty_playlist(userID, artist_name, user_data_token):
     '''
     Function that creates an empty playlist for user with userID
     Input: user ID
     Returns: ID of the newly created playlist
     '''
-    # Please, write the code
-    pass
+    # Endpint to get current user profile
+    endpoint = "https://api.spotify.com/v1/users/" + userID + "/playlists"
+    # Authorization header
+    authorization_header = {"Authorization": "Bearer {}".format(user_data_token)}
+    # Specify params of new playlist
+    payload = {"name": artist_name}
+    playlist_data = requests.post(endpoint,
+                                  headers=authorization_header,
+                                  json=payload)
+    # print "URL", playlist_data.url
+    # print "RESPONSE FOR NEW PLAYLIST", playlist_data.json()
+    return playlist_data.json()
 
 
-def add_traks_to_playlist(userID, playlistID, uris):
+def add_traks_to_playlist(userID, playlistID, uris, user_data_token):
     '''
     Add Tracks to a Playlist
     Input:
@@ -238,8 +256,17 @@ def add_traks_to_playlist(userID, playlistID, uris):
     True - tracks were added to playlist
     False - in case of error
     '''
-    # Please, write the code
-    pass
+    # Endpint to get current user profile
+    endpoint = "https://api.spotify.com/v1/users/" + userID + "/playlists/" + playlistID + "/tracks"
+    # Authorization header
+    authorization_header = {"Authorization": "Bearer {}".format(user_data_token)}
+    # Specify params of new playlist
+    payload = {"uris": uris}
+    playlist_with_tracks = requests.post(endpoint,
+                                         headers=authorization_header,
+                                         json=payload)
+
+    return playlist_with_tracks
 
 
 @app.route("/")
@@ -250,6 +277,10 @@ def index():
     add artist's top tracks to user's Spotify account new playlist
     2) Search city for upcoming gigs.
     '''
+    if "tracks_uri" in session:
+        session.pop('tracks_uri', None)
+    if "artist_name" in session:
+        session.pop("artist_name", None)
     return render_template("index.html")
 
 
@@ -276,6 +307,7 @@ def requestAuth():
 
     # Request URL
     auth_url = endpoint + "/?" + url_arg
+    #print "AUTH_URL", auth_url
     # User is redirected to Spotify where user is asked to authorize access to
     # his/her account within the scopes
     return redirect(auth_url)
@@ -295,15 +327,15 @@ def callback():
     # On success response query string contains parameter "code".
     # Code is used to receive access data from Spotify
     code = request.args['code']
-
+    # print "CODE", code
     # request_token function returns dict of access values
     access_data = request_user_data_token(code)
-
+    # print "TOKEN", access_data["access_token"]
     # Session allows to store information specific to a user from one request
     # to the next one
     session['access_data'] = access_data
     # After the access_data was received our App can use Spotify API
-    return render_template("ask_artist.html")
+    return redirect(url_for('create_playlist'))
 
 
 @app.route("/search_artist", methods=["POST"])
@@ -378,17 +410,22 @@ def show_top_tracks():
     # print top_tracks
     # Initiate dictionary to story only needed data
     tracks_dict = {}
+    tracks_uri = []
     # Storing in dict name, uri and preview_url of top tracks
     for track in top_tracks["tracks"]:
-        tracks_dict[track["name"]] = {"uri": track["uri"],
-                                      "preview_url": track["preview_url"]}
+        tracks_dict[track["name"]] = {"preview_url": track["preview_url"]}
+        tracks_uri.append(track["uri"])
+    # Session allows to store information specific to a user from one request
+    # to the next one
+    session['artist_name'] = artist_name
+    session['tracks_uri'] = tracks_uri
     return render_template("req_to_create_playlist.html",
                            tracks_dict=tracks_dict,
                            name=artist_name.title(),
                            picture=artist_pic)
 
 
-@app.route("/create_playlist", methods=["POST"])
+@app.route("/create_playlist")
 def create_playlist():
     '''
     What to do:
@@ -404,28 +441,34 @@ def create_playlist():
     Template saies that playlist is successfully created and there is a link
     to Index page
     '''
+
     # Check if user is logged in
     if "access_data" not in session:
         return redirect(url_for('index'))
     # User is logged in
     # Get access token from user's request
     token = session['access_data']['access_token']
+    # print "TOKEN", token
+    if "tracks_uri" not in session:
+        return redirect(url_for('index'))
 
-    form_data = request.form
-    artistID = form_data["artist"]
-
-
-    # Get list of artist's top tracks URIs
-    track_uris = get_artist_top_tracks(artistID)
+    tracks_uri = session['tracks_uri']
+    artist_name = session['artist_name']
+    session.pop('tracks_uri', None)
+    session.pop('artist_name', None)
+    # print "TRACKS_URI", tracks_uri
     # Get user ID from Current User's Profile
-    userID = get_current_user_profile(token)
+    userID = get_current_user_profile(token)["id"]
+    # print "USER ID", userID
     # Create empty playlist using user ID
-    playlistID = create_empty_playlist(userID)
+    playlistID = create_empty_playlist(userID, artist_name, token)["id"]
+    # playlistID = None
     # Add Artist's Top Tracks to a Playlist
-    response = add_traks_to_playlist(userID, playlistID, track_uris)
-    if not response:
-        return 'Sorry. An error accured. Playlist was not created'
-    return 'Playlist successfully created'
+    response = add_traks_to_playlist(userID, playlistID, tracks_uri, token)
+    return render_template("playlist_creation.html", res=response)
+    # if response.status_code != 201:
+    #     return 'Sorry. An error accured. Playlist was not created'
+    # return 'Playlist successfully created'
 
 
 @app.route("/events_list", methods=["POST"])
@@ -448,7 +491,7 @@ def city_results():
             item['track_url'] = track_url
         except (KeyError, IndexError):
             continue
-    return render_template("events_list.html", main_list = main_list)
+    return render_template("events_list.html", main_list=main_list)
 
 
 def search_location(search_query):

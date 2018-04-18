@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Ask an artist</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link href='../static/css/main.css' rel='stylesheet'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+        <div class="container2">
+          {% if res.status_code != 201 %}
+            <p>Sorry. An error occurred. Playlist wasn't created</p><br>
+          {% endif %}
+          <p>Playlist successfully created</p><br>
+          <!--<div id="contact-form">
+            <form method="post" action="/search_artist">
+              <input type="text" id="artist" name="artist" required="required" placeholder="Enter Artist"><br>
+              <input class="btn btn-secondary btn-lg" type="submit" value="Find" id="submit-button">
+            </form>
+
+          </div> -->
+        </div>
+
+  </body>
+</html>
