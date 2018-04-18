@@ -43,13 +43,23 @@ h1 {
 	font-weight: bold;
 	font-size:20px;
 	font:40px;
-	padding-top: 2px;
 }
 
 .paddedrow {
  padding: 30px;
 }
 
+.type-text {
+  display: block;
+  margin: 0 auto;
+
+}
+
+.submit-button {
+
+  display: block;
+  margin: 20px auto 0 auto;
+}
 
 .container2 {
   	background-color: rgba(0, 0, 0, 0.4);
